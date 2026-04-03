@@ -275,18 +275,32 @@ apply_config_overrides() {
     local config_file="$1"
     [ -f "$config_file" ] || return 0
 
-    # Override secret if provided
+    if grep -q '^allow-lan:' "$config_file"; then
+        log "🌐 Setting allow-lan: true"
+        sed -i 's|^allow-lan:.*|allow-lan: true|' "$config_file"
+    else
+        log "🌐 Adding allow-lan: true at the beginning"
+        sed -i '1i allow-lan: true' "$config_file"
+    fi
+
+    if grep -q '^external-controller:' "$config_file"; then
+        log "🎛️  Setting external-controller: 0.0.0.0:9090"
+        sed -i 's|^external-controller:.*|external-controller: 0.0.0.0:9090|' "$config_file"
+    else
+        log "🎛️  Adding external-controller: 0.0.0.0:9090 at the beginning"
+        sed -i '1i external-controller: 0.0.0.0:9090' "$config_file"
+    fi
+
     if [ -n "$CLASH_API_SECRET" ]; then
         if grep -q '^secret:' "$config_file"; then
             log "🔒 Setting secret for API authentication"
             sed -i "s|^secret:.*|secret: '$CLASH_API_SECRET'|" "$config_file"
         else
-            log "🔒 secret field not found in config, adding it at the end"
+            log "🔒 Adding secret field"
             echo "secret: '$CLASH_API_SECRET'" >> "$config_file"
         fi
     fi
 
-    # Disable DNS only when explicitly requested
     if [ -n "${DISABLE_CLASH_DNS:-}" ]; then
         case "$(echo "$DISABLE_CLASH_DNS" | tr '[:upper:]' '[:lower:]')" in
             true|1|yes)
